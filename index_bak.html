@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+		 <!-- Global site tag (gtag.js) - Google Analytics -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=UA-154613217-1"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'UA-154613217-1');
+        </script>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+		<meta http-equiv='cache-control' content='no-cache'>
+		<meta http-equiv='expires' content='0'>
+		<meta http-equiv='pragma' content='no-cache'>
+        <title>My Game Positions</title>
+		<script src="lib/jquery/jquery-3.2.1.min.js"></script>
+        <!-- Latest compiled and minified CSS -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+              integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+        <!-- Optional theme -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css"
+              integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.10.1/bootstrap-table.min.css">
+
+        <!-- Latest compiled and minified JavaScript -->
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"
+        integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+        <link rel="stylesheet" href="lib/chessboardjs/css/chessboard-0.3.0.css">
+		<link rel="stylesheet" href="style.css">
+		
+		<script src="lib/chessboardjs/js/chess.js"></script>
+		<script src="lib/chessboardjs/js/chessboard-0.3.0.js"></script>
+    </head>
+
+    <body>
+
+
+    <div class="container">
+        <div class="row" >
+
+            
+                <div id="secondWindow">
+
+                    
+                    <div id="controls" style="display:block;margin: 10px;" >
+                        <form class="form-inline">
+ 
+                            <label for="lichessidlbl">Lichess ID:</label>
+
+							<input type="text" id="lichessid" lichessid="lichessid" required
+								   minlength="1" maxlength="50" size="29">
+							<br> <br>	   
+							<label for="maxgames">Games to download:</label>
+							<input type="text" value="10" id="numgames" numgames="numgames" required
+								   minlength="1" maxlength="50" size="20">	   
+							<br> <br>	   
+							<button type="button" class="btn btn-default" id="Submit" onclick="GenPuzzle()";>Submit</button>
+							<br> <br>
+                            <p id="usrmsg"> Will take a couple of minutes for about 100 games</p>
+							<p id="usrmsg"> Will pull only computer analyzed games.</p>
+							<br>
+					
+                        </form>
+                    </div>
+					
+                </div>
+
+            
+                <div id="mainWindow">
+                   
+                    <div id="piecesB"></div>
+                    <div id="board" style="display:none" ></div>
+                    <div id="piecesW"></div>
+					
+					<div id="nxcontrols" style="display:none">
+						<p>
+							For solution on lichess click <a id="gamelink" href="" target="_blank">here</a> & switch on engine
+						</p>
+						
+						<button type="button" class="btn btn-default" id="Next" onclick="NextPos()";>Next Position</button>
+						
+					</div>
+					
+                </div>
+                
+        </div>
+    
+    </div>
+	
+    
+    <script>
+		
+		var input = document.getElementById("lichessid");
+		input.addEventListener("keypress", function(event) {
+		  if (event.keyCode === 13) {
+		   event.preventDefault();
+		   GenPuzzle()
+		  }
+		});
+		var input2 = document.getElementById("numgames");
+		input2.addEventListener("keypress", function(event) {
+		  if (event.keyCode === 13) {
+		   event.preventDefault();
+		   GenPuzzle()
+		  }
+		});
+		var gameArray = []
+		var gameArray_org = []
+		var puzzleArray = []
+		var solArray = []
+		var orArray = []
+		var pzlMvList = []
+		var game_response = ""
+		var curr_game = ""
+		game = new Chess()
+		
+		var cfg = {
+		  draggable: true,
+		  position: 'start',
+		  orientation: 'white'
+		};
+		board = ChessBoard('board', cfg);
+		
+		function httpGetAsync(theUrl, callback)
+		{
+			console.log("here 1")
+			var xmlHttp = new XMLHttpRequest();
+			xmlHttp.onreadystatechange = function() { 
+				console.log("here 5")
+				console.log(xmlHttp.readyState)
+				console.log(xmlHttp.status)
+				if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+					console.log("here 6")
+					alert(xmlHttp.responseText)
+					callback(xmlHttp.responseText);
+			}
+			console.log("here 2")
+			xmlHttp.open("GET", theUrl, true); // true for asynchronous 
+			console.log("here 3")
+			xmlHttp.send(null);
+			console.log("here 4")
+		}
+		
+        function httpGet(theUrl)
+		{
+			$("body").css("cursor", "progress");
+			var xmlHttp = new XMLHttpRequest();
+			xmlHttp.open( "GET", theUrl, false ); // false for synchronous request
+			xmlHttp.send( null );
+			$("body").css("cursor", "default");
+			return xmlHttp.responseText;
+		}
+		var onDragStart = function(source, piece, position, orientation) {
+			if (game.game_over() === true ||
+			  (game.turn() === 'w' && piece.search(/^b/) !== -1) ||
+			  (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
+				return false;
+			}
+		};
+		var onDrop = function(source, target) {
+		  
+		  // see if the move is legal
+		  var move = game.move({
+			from: source,
+			to: target,
+			promotion: 'q' // NOTE: always promote to a queen for example simplicity
+		  });
+
+		  // illegal move
+		  if (move === null) {
+			return 'snapback';
+		}
+			
+		};
+		var onSnapEnd = function() {
+			board.position(game.fen());
+		};
+		function shuffle(array) {
+		  var currentIndex = array.length, temporaryValue, randomIndex;
+
+		  // While there remain elements to shuffle...
+		  while (0 !== currentIndex) {
+
+			// Pick a remaining element...
+			randomIndex = Math.floor(Math.random() * currentIndex);
+			currentIndex -= 1;
+
+			// And swap it with the current element.
+			temporaryValue = array[currentIndex];
+			array[currentIndex] = array[randomIndex];
+			array[randomIndex] = temporaryValue;
+		  }
+
+		  return array;
+		}
+		function NextPos() {
+			var rndgame = ""
+			var response = ""
+			game = new Chess()
+			var game1 = new Chess()
+			var randIndx = -1
+			if (pzlMvList.length == 0) {
+				rndgame = gameArray.shift(); 
+				randIndx = gameArray_org.indexOf(rndgame) 
+				curr_game = rndgame
+				response = httpGet("https://lichess.org/game/export/" + rndgame + "?literate=true");
+				game_response = response
+				//console.log(response)
+				
+				game1.load_pgn(response);
+				/* delete header to get the moves */
+				var ms = response.replace(game1.header(), '');
+				//console.log("Header deleted-------")
+				//console.log(ms)
+				/* delete comments */
+				var workingstuff = ms.replace(/(\{[^}]+\})+?/g, '');
+				//console.log(workingstuff)
+				//console.log("comments deleted-------")
+				//console.log(workingstuff)
+				var splts = workingstuff.split("(")
+				
+				for(var line = 1; line < splts.length; line++){
+					var res = splts[line].split(")")
+					//console.log(res)
+					//console.log(res[0].substring(3,4))
+					if((res[0].substring(3,4) == "." && orArray[randIndx] == "black") || (res[0].substring(3,4) != "." && orArray[randIndx] == "white"))
+					pzlMvList.push(res[0])
+				}
+				//console.log(pzlMvList)
+			} else {
+				response = game_response;
+				rndgame = curr_game
+				randIndx = gameArray_org.indexOf(rndgame) 
+			}
+			
+			//console.log("Response-------")
+			
+			
+			mvindex = Number(pzlMvList.shift().split(".")[0])
+			
+			if (orArray[randIndx] == "black") {
+				mvindex = mvindex * 2 - 1
+			} else {
+				mvindex = mvindex * 2 - 2
+			}
+			game1.load_pgn(response);
+			
+			//console.log(mvindex)
+			var game_link = "https://lichess.org/"+rndgame+"/"+orArray[randIndx]+"/#"+mvindex.toString()
+			//console.log(game_link)
+			
+			style="display:block"
+			var a = document.getElementById("board");
+			a.style.display = "block"
+			var b = document.getElementById("nxcontrols");
+			b.style.display = "block"
+			var c = document.getElementById("controls");
+			c.style.display = "none"
+			c.style.margin = "1px"
+			var c = document.getElementById("gamelink");
+			c.href = game_link
+			
+			var lsol = game1.history();
+		
+			solArray = lsol.toString().split(',');
+			for(var j = 0; j< mvindex;j++) {
+				//console.log(solArray[j])
+				game.move(solArray[j])
+			}
+			var cfg = {
+			  draggable: true,
+			  onDragStart: onDragStart,
+			  onDrop: onDrop,
+				onSnapEnd: onSnapEnd,
+			  position: game.fen(),
+			  orientation: orArray[randIndx]
+			};
+			board = ChessBoard('board', cfg);
+			return false
+		}
+		function GenPuzzle() {
+			//$('#usrmsg').text("Fetching the data, please wait ...")
+			var m = document.getElementById("lichessid");
+			var n = document.getElementById("numgames");
+			
+			if (m.value == "" || n.value == "") {
+				alert("Improper inputs")
+			}			
+			
+			//const response = httpGetAsync("https://lichess.org/api/games/user/" + m.value + "?max=1&analysed=true&moves=false", callback);
+			//const response = httpGet("https://lichess.org/api/games/user/" + m.value + "?max=2&analysed=true&moves=false&perfType=blitz,rapid,classical");
+			var response = httpGet("https://lichess.org/api/games/user/" + m.value + "?max="+n.value+"&analysed=true&moves=false&perfType=blitz,rapid,classical,correspondence");
+			
+			//alert(response)
+			//console.log(response)
+			
+			var lines = response.split('\n');
+			//console.log(lines)
+			//var lines = JSON.stringify(response);
+			for(var line = 0; line < lines.length; line++){
+				
+				var ln = lines[line]
+				
+				
+				if (ln.substring(0,5 ) == "[Site") {
+					var lnarray = ln.split('/')
+					var alen = lnarray.length
+					gameArray.push(lnarray[alen -1].substring(0,8))
+					gameArray_org.push(lnarray[alen -1].substring(0,8))
+				}
+				if (ln.substring(0,7 ) == "[White ") {
+					var lnarray = ln.split(' ')
+					var alen = lnarray.length
+					var id = lnarray[alen -1]
+					//console.log(id)
+					//if (id == "\"VishyNotAnand"+"\"]") {
+					if (id == "\"" + m.value +"\"]") {
+						orArray.push("white")
+					} else {
+						orArray.push("black")
+					}
+					
+				}
+			}
+			//console.log(gameArray	)
+			//console.log(orArray	)
+			
+			gameArray = shuffle(gameArray)
+			
+			//console.log(gameArray_org)
+			//console.log(gameArray)
+			
+			var rndgame = gameArray.shift(); 
+			curr_game = rndgame
+			randIndx = gameArray_org.indexOf(rndgame) 
+			var response = httpGet("https://lichess.org/game/export/" + rndgame + "?literate=true");
+			//console.log("Response-------")
+			//console.log(response)
+			game_response = response
+			var game1 = new Chess()
+			game1.load_pgn(response);
+			/* delete header to get the moves */
+			var ms = response.replace(game1.header(), '');
+			//console.log("Header deleted-------")
+			//console.log(ms)
+			/* delete comments */
+            var workingstuff = ms.replace(/(\{[^}]+\})+?/g, '');
+			//console.log(workingstuff)
+			//console.log("comments deleted-------")
+			//console.log(workingstuff)
+			var splts = workingstuff.split("(")
+			
+			for(var line = 1; line < splts.length; line++){
+				var res = splts[line].split(")")
+				//console.log(res[0].substring(3,4))
+				if((res[0].substring(3,4) == "." && orArray[randIndx] == "black") || (res[0].substring(3,4) != "." && orArray[randIndx] == "white"))
+				pzlMvList.push(res[0])
+			}
+			//console.log(pzlMvList)
+			var currPuzzle = pzlMvList.shift();
+			mvindex = Number(currPuzzle.split(".")[0])
+			
+			if (orArray[randIndx] == "black") {
+				mvindex = mvindex * 2 - 1
+			} else {
+				mvindex = mvindex * 2 - 2
+			}
+			game1.load_pgn(response);
+			
+			//console.log(mvindex)
+			//console.log("https://lichess.org/"+rndgame+"/"+orArray[randIndx]+"/#"+mvindex.toString())
+			
+			style="display:block"
+			var a = document.getElementById("board");
+			a.style.display = "block"
+			var b = document.getElementById("nxcontrols");
+			b.style.display = "block"
+			var c = document.getElementById("controls");
+			c.style.display = "none"
+			
+			var c = document.getElementById("gamelink");
+			c.href = "https://lichess.org/"+rndgame+"/"+orArray[randIndx]+"/#"+mvindex.toString()
+			
+			var lsol = game1.history();
+		
+			solArray = lsol.toString().split(',');
+			for(var j = 0; j< mvindex;j++) {
+				//console.log(solArray[j])
+				game.move(solArray[j])
+			}
+			var cfg = {
+			  draggable: true,
+			  onDragStart: onDragStart,
+			  onDrop: onDrop,
+				onSnapEnd: onSnapEnd,
+			  position: game.fen(),
+			  orientation: orArray[randIndx]
+			};
+			board = ChessBoard('board', cfg);
+			
+			
+			//console.log(solArray)
+			
+			return false;
+		}		
+         
+    </script>
+   <!--script src="script.js"></script-->
+    </body>
+</html>
